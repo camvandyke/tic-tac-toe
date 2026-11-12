@@ -144,7 +144,7 @@ h1 .x { color: var(--x); } h1 .o { color: var(--o); }
     <button class="btn" id="again">New round</button>
     <button class="btn ghostbtn" id="reset">Reset score</button>
   </div>
-  <p class="hint">X always goes first. Players swap who starts each round. Use the arrow keys and Enter to play from the keyboard.</p>
+  <p class="hint">Whoever started last round goes second in the next one. Use the arrow keys and Enter to play from the keyboard.</p>
 </main>
 
 <script>
@@ -274,9 +274,10 @@ h1 .x { color: var(--x); } h1 .o { color: var(--o); }
     S.round++;
     const keep = { mode: S.mode, diff: S.diff, score: S.score, round: S.round };
     S = fresh(keep);
-    // alternate who starts: in cpu mode the computer takes X on odd rounds
-    S.cpu = S.round % 2 ? "X" : "O";
-    if (S.mode === "pvp") S.cpu = "O";
+    // alternate who starts: in cpu mode the computer takes X (and moves first) on odd rounds;
+    // in 2-player mode O moves first on odd rounds
+    if (S.mode === "pvp") S.turn = S.round % 2 ? "O" : "X";
+    else S.cpu = S.round % 2 ? "X" : "O";
     render(); maybeCpu();
   }
 
