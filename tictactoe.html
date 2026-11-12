@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Graph Paper Tic Tac Toe</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one centered column on a graph-paper sheet; board is the hero, controls and score sit under it. */
+:root {
+  --paper: #f3f6f8;
+  --grid: #d5e1ea;
+  --ink: #1b2a3a;
+  --muted: #5d7183;
+  --x: #d1452f;
+  --o: #1f6fb8;
+  --surface: #ffffff;
+  --line: #9db2c4;
+  --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1b27; --grid: #1a2b3b; --ink: #e4edf5; --muted: #8ea4b8;
+    --x: #ff7a5f; --o: #5fb0ff; --surface: #152536; --line: #39536b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f1b27; --grid: #1a2b3b; --ink: #e4edf5; --muted: #8ea4b8;
+  --x: #ff7a5f; --o: #5fb0ff; --surface: #152536; --line: #39536b; color-scheme: dark;
+}
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 48px;
+}
+main { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header { display: flex; flex-direction: column; gap: 4px; }
+h1 {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(2rem, 8vw, 2.75rem);
+  line-height: 1; margin: 0; letter-spacing: -0.02em; text-wrap: balance;
+}
+h1 .x { color: var(--x); } h1 .o { color: var(--o); }
+.status {
+  font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; min-height: 1.6em; margin: 0;
+}
+.status b { font-weight: 800; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button {
+  font: 600 0.8rem var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase;
+  border: 0; background: transparent; color: var(--muted); padding: 8px 12px; cursor: pointer;
+}
+.seg button + button { border-left: 1.5px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.seg button:focus-visible, .cell:focus-visible, .btn:focus-visible { outline: 3px solid var(--o); outline-offset: 2px; }
+
+.board-wrap { position: relative; width: 100%; max-width: 100%; aspect-ratio: 1; }
+.board { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; height: 100%; }
+.cell {
+  appearance: none; border: 0; background: transparent; padding: 10%; cursor: pointer; position: relative;
+  border-color: var(--ink); border-style: solid; border-width: 0;
+}
+.cell:nth-child(-n+6) { border-bottom-width: 3px; }
+.cell:not(:nth-child(3n)) { border-right-width: 3px; }
+.cell:disabled { cursor: default; }
+.cell:not(:disabled):hover .ghost { opacity: 0.18; }
+.cell svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ghost { opacity: 0; transition: opacity .15s; }
+.mark { fill: none; stroke-width: 10; stroke-linecap: round; }
+.mark.x { stroke: var(--x); } .mark.o { stroke: var(--o); }
+.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .28s ease-out forwards; }
+.draw.second { animation-delay: .14s; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.winline { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
+.winline line { stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; }
+.cell.dim svg { opacity: 0.3; transition: opacity .3s; }
+
+.score {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.score div {
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;
+}
+.score span { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.score strong { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; }
+.score .sx strong { color: var(--x); } .score .so strong { color: var(--o); }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  font: 600 0.85rem var(--font-mono); border-radius: 8px; padding: 10px 16px; cursor: pointer;
+  border: 1.5px solid var(--ink); background: var(--ink); color: var(--paper);
+}
+.btn.ghostbtn { background: transparent; color: var(--ink); border-color: var(--line); }
+.hint { font-size: 0.75rem; color: var(--muted); margin: 0; }
+@media (prefers-reduced-motion: reduce) { .draw { animation: none; stroke-dashoffset: 0; } }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <h1>Tic <span class="x">Tac</span> <span class="o">Toe</span></h1>
+    <p class="status" id="status" aria-live="polite"></p>
+  </header>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Opponent">
+      <button id="mode-cpu" data-mode="cpu">vs Computer</button>
+      <button id="mode-pvp" data-mode="pvp">2 Players</button>
+    </div>
+    <div class="seg" role="group" aria-label="Difficulty" id="diff">
+      <button id="diff-easy" data-diff="easy">Easy</button>
+      <button id="diff-hard" data-diff="hard">Unbeatable</button>
+    </div>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" id="board"></div>
+    <svg class="winline" id="winline" viewBox="0 0 30 30" aria-hidden="true"></svg>
+  </div>
+
+  <div class="score" aria-label="Score">
+    <div class="sx"><span id="lbl-x">You (X)</span><strong id="sc-x">0</strong></div>
+    <div><span>Draws</span><strong id="sc-d">0</strong></div>
+    <div class="so"><span id="lbl-o">Computer (O)</span><strong id="sc-o">0</strong></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="again">New round</button>
+    <button class="btn ghostbtn" id="reset">Reset score</button>
+  </div>
+  <p class="hint">X always goes first. Players swap who starts each round. Use the arrow keys and Enter to play from the keyboard.</p>
+</main>
+
+<script>
+(function () {
+  const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  const $ = id => document.getElementById(id);
+  const boardEl = $("board");
+  let S;
+
+  function fresh(prev) {
+    return {
+      board: Array(9).fill(null), turn: "X", over: false, win: null,
+      mode: prev?.mode || "cpu", diff: prev?.diff || "hard",
+      score: prev?.score || { X: 0, O: 0, D: 0 },
+      round: prev?.round || 0, cpu: "O",
+    };
+  }
+
+  function winner(b) {
+    for (const l of LINES) { const [a,c,d] = l; if (b[a] && b[a] === b[c] && b[a] === b[d]) return { p: b[a], line: l }; }
+    return b.every(Boolean) ? { p: "D" } : null;
+  }
+
+  function minimax(b, me, cur, depth) {
+    const w = winner(b);
+    if (w) return w.p === "D" ? 0 : (w.p === me ? 10 - depth : depth - 10);
+    let best = cur === me ? -Infinity : Infinity;
+    for (let i = 0; i < 9; i++) if (!b[i]) {
+      b[i] = cur; const v = minimax(b, me, cur === "X" ? "O" : "X", depth + 1); b[i] = null;
+      best = cur === me ? Math.max(best, v) : Math.min(best, v);
+    }
+    return best;
+  }
+
+  function cpuMove() {
+    const open = S.board.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+    if (S.diff === "easy" && Math.random() < 0.6) return open[Math.floor(Math.random() * open.length)];
+    let best = -Infinity, picks = [];
+    for (const i of open) {
+      S.board[i] = S.cpu; const v = minimax(S.board, S.cpu, S.cpu === "X" ? "O" : "X", 1); S.board[i] = null;
+      if (v > best) { best = v; picks = [i]; } else if (v === best) picks.push(i);
+    }
+    return picks[Math.floor(Math.random() * picks.length)];
+  }
+
+  const svgX = (anim) => `<path class="mark x ${anim ? "draw" : ""}" pathLength="1" d="M15 15 L85 85"/><path class="mark x ${anim ? "draw second" : ""}" pathLength="1" d="M85 15 L15 85"/>`;
+  const svgO = (anim) => `<circle class="mark o ${anim ? "draw" : ""}" pathLength="1" cx="50" cy="50" r="36" transform="rotate(-90 50 50)"/>`;
+
+  function buildBoard() {
+    boardEl.innerHTML = "";
+    for (let i = 0; i < 9; i++) {
+      const b = document.createElement("button");
+      b.className = "cell"; b.id = "cell-" + i; b.dataset.i = i;
+      b.addEventListener("click", () => play(i, true));
+      b.addEventListener("keydown", e => {
+        const k = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -3, ArrowDown: 3 }[e.key];
+        if (k != null) { e.preventDefault(); const n = i + k; if (n >= 0 && n < 9) $("cell-" + n).focus(); }
+      });
+      boardEl.appendChild(b);
+    }
+  }
+
+  function renderCell(i, anim) {
+    const c = $("cell-" + i), v = S.board[i];
+    const ghost = S.turn === "X" ? svgX(false) : svgO(false);
+    c.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true">${v ? (v === "X" ? svgX(anim) : svgO(anim)) : `<g class="ghost">${ghost}</g>`}</svg>`;
+    c.setAttribute("aria-label", `Row ${Math.floor(i/3)+1}, column ${i%3+1}: ${v || "empty"}`);
+  }
+
+  function render(animIdx) {
+    const cpuTurn = S.mode === "cpu" && S.turn === S.cpu;
+    for (let i = 0; i < 9; i++) {
+      if (i === animIdx || !S.board[i] || animIdx === undefined) renderCell(i, i === animIdx);
+      const c = $("cell-" + i);
+      c.disabled = S.over || !!S.board[i] || cpuTurn;
+      c.classList.toggle("dim", !!(S.win && S.win.line && !S.win.line.includes(i)));
+    }
+    // win line
+    const wl = $("winline");
+    if (S.win && S.win.line) {
+      const [a, , d] = S.win.line, pt = k => [(k % 3) * 10 + 5, Math.floor(k / 3) * 10 + 5];
+      const [x1, y1] = pt(a), [x2, y2] = pt(d), dx = (x2 - x1) * 0.12, dy = (y2 - y1) * 0.12;
+      wl.innerHTML = `<line class="draw" pathLength="1" x1="${x1 - dx}" y1="${y1 - dy}" x2="${x2 + dx}" y2="${y2 + dy}"/>`;
+    } else wl.innerHTML = "";
+
+    const name = p => S.mode === "pvp" ? `Player ${p}` : (p === S.cpu ? "Computer" : "You");
+    const st = $("status");
+    if (S.win) st.innerHTML = S.win.p === "D" ? "Draw. Nobody wins this one." :
+      (S.mode === "cpu" ? (S.win.p === S.cpu ? "<b>Computer</b> wins." : "<b>You</b> win!") : `<b>Player ${S.win.p}</b> wins!`);
+    else st.innerHTML = cpuTurn ? "Computer is thinking…" : `<b>${name(S.turn)}</b> to move (${S.turn})`;
+
+    $("lbl-x").textContent = S.mode === "pvp" ? "Player X" : `${name("X")} (X)`;
+    $("lbl-o").textContent = S.mode === "pvp" ? "Player O" : `${name("O")} (O)`;
+    const sx = S.mode === "cpu" && S.cpu === "X" ? S.score.O : S.score.X; // score keyed by role, not mark
+    $("sc-x").textContent = S.mode === "cpu" ? (S.cpu === "X" ? S.score.cpu || 0 : S.score.you || 0) : S.score.X;
+    $("sc-o").textContent = S.mode === "cpu" ? (S.cpu === "O" ? S.score.cpu || 0 : S.score.you || 0) : S.score.O;
+    $("sc-d").textContent = S.score.D;
+
+    document.querySelectorAll("[data-mode]").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === S.mode));
+    document.querySelectorAll("[data-diff]").forEach(b => b.setAttribute("aria-pressed", b.dataset.diff === S.diff));
+    $("diff").hidden = S.mode !== "cpu";
+  }
+
+  function play(i, byHuman) {
+    if (S.over || S.board[i]) return;
+    if (byHuman && S.mode === "cpu" && S.turn === S.cpu) return;
+    S.board[i] = S.turn;
+    const w = winner(S.board);
+    if (w) {
+      S.over = true; S.win = w;
+      if (w.p === "D") S.score.D++;
+      else if (S.mode === "cpu") { const k = w.p === S.cpu ? "cpu" : "you"; S.score[k] = (S.score[k] || 0) + 1; }
+      else S.score[w.p]++;
+    } else S.turn = S.turn === "X" ? "O" : "X";
+    render(i);
+    if (!S.over) for (let k = 0; k < 9; k++) if (!S.board[k]) renderCell(k, false);
+    maybeCpu();
+  }
+
+  let cpuTimer;
+  function maybeCpu() {
+    clearTimeout(cpuTimer);
+    if (S.mode === "cpu" && !S.over && S.turn === S.cpu) cpuTimer = setTimeout(() => play(cpuMove(), false), 450);
+  }
+
+  function newRound() {
+    S.round++;
+    const keep = { mode: S.mode, diff: S.diff, score: S.score, round: S.round };
+    S = fresh(keep);
+    // alternate who starts: in cpu mode the computer takes X on odd rounds
+    S.cpu = S.round % 2 ? "X" : "O";
+    if (S.mode === "pvp") S.cpu = "O";
+    render(); maybeCpu();
+  }
+
+  document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => {
+    if (S.mode === b.dataset.mode) return;
+    S = fresh({ mode: b.dataset.mode, diff: S.diff }); render(); maybeCpu();
+  }));
+  document.querySelectorAll("[data-diff]").forEach(b => b.addEventListener("click", () => {
+    S.diff = b.dataset.diff; render();
+  }));
+  $("again").addEventListener("click", newRound);
+  $("reset").addEventListener("click", () => { S.score = { X: 0, O: 0, D: 0 }; render(); });
+
+  function start(data) {
+    buildBoard();
+    S = data && data.board ? data : fresh();
+    render(); maybeCpu();
+  }
+  window.claude?.hot?.snapshot?.(() => S);
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+</body>
+</html>
